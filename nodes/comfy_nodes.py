@@ -130,3 +130,62 @@ class InstantCharacterGenerate:
         
         return (image,)
 
+# --- New Node for Guff Integration (Prepare Sampler Inputs) ---
+class InstantCharacterGuffSamplerInputs:
+    """
+    Prepares inputs for a standard ComfyUI sampler node like KSampler or Guff.
+    This node allows using the InstantCharacter prompts/latent setup with
+    an external sampler node for more control, specifically designed to
+    facilitate using the Guff node for Flux diffusion manually in a workflow.
+    It takes a standard MODEL input, allowing connection from a model loader.
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model": ("MODEL",), # Connect the MODEL output from your Guff-compatible model loader here
+                "positive_prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": ""}), # Default to empty string as requested
+                "latent_image": ("LATENT",), # Connect your Empty Latent Image or VAE Encode output here
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
+                "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0}),
+                # Sampler/Scheduler inputs are omitted here, as they are typically
+                # selected directly on the KSampler/Guff node itself.
+                # Note: Subject image handling is specific to the InstantCharacter pipeline
+                # and is not included here as it's not a standard sampler input.
+                # You would need separate IP-Adapter or conditioning nodes if needed.
+            }
+        }
+
+    # Define the output types and names. These match standard sampler inputs.
+    RETURN_TYPES = ("MODEL", "LATENT", "CONDITIONING", "CONDITIONING", "INT", "FLOAT", "INT")
+    RETURN_NAMES = ("model", "latent", "positive", "negative", "seed", "steps", "cfg")
+    FUNCTION = "prepare_inputs"
+    CATEGORY = "InstantCharacter/Guff" # Put it in a subcategory for organization
+
+    def prepare_inputs(self, model, positive_prompt, negative_prompt, latent_image, seed, steps, cfg):
+        """
+        Generates conditioning tensors from prompts using the provided MODEL
+        and passes through other sampler inputs.
+        """
+        print("Executing InstantCharacter: Prepare for Guff/Sampler node")
+
+        # Get conditioning from prompts using the model's CLIP/tokenizer
+        # This requires the MODEL to have a clip component (like SDXL or Flux models)
+        try:
+            # comfy.sd.get_conditioning returns a tuple: (tensor, pooled_output)
+            positive_cond, positive_pooled = comfy.sd.get_conditioning(model, positive_prompt, [])
+            negative_cond, negative_pooled = comfy.sd.get_conditioning(model, negative_prompt, [])
+
+            # Standard format for conditioning output in ComfyUI
+            positive_conditioning = [[positive_cond, {"pooled_output": positive_pooled}]]
+            negative_conditioning = [[negative_cond, {"pooled_output": negative_pooled}]]
+
+        except Exception as e:
+             print(f"Error generating conditioning in Guff prep node: {e}")
+             # Raise an error if conditioning fails, as the sampler won't work without it.
+             raise ValueError(f"Could not generate conditioning. Ensure the loaded MODEL is compatible (e.g., SDXL or Flux model with CLIP). Error: {e}")
+
+        # Return the prepared inputs. These can be connected directly to a KSampler or Guff node.
+        return (model, latent_image, positive_conditioning, negative_conditioning, seed, steps, cfg)
