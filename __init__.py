@@ -4,7 +4,7 @@ from .nodes.comfy_nodes import InstantCharacterLoadModel, InstantCharacterGenera
 NODE_CLASS_MAPPINGS = {
     "InstantCharacterLoadModel": InstantCharacterLoadModel, # Keep existing node
     "InstantCharacterGenerate": InstantCharacterGenerate, # Keep existing node
-    "InstantCharacter_Guff_Sampler_Inputs": InstantCharacter_Guff_Sampler_Inputs, # Add new node
+    "InstantCharacter_Guff_Sampler_Inputs": InstantCharacterGuffSamplerInputs, # Add new node
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
