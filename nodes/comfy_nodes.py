@@ -4,7 +4,7 @@ import torch
 import folder_paths
 from PIL import Image
 import numpy as np
-
+from diffusers import FluxTransformer2DModel, GGUFQuantizationConfig
 
 # Add the parent directory to the Python path so we can import from easycontrol
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -45,9 +45,16 @@ class InstantCharacterLoadModel:
         image_encoder_2_cache_dir = folder_paths.get_folder_paths("clip_vision")[0]
         device = "cuda" if torch.cuda.is_available() else "cpu"
         ip_adapter_path = folder_paths.get_full_path("ipadapter", ip_adapter_name)
-        
+
+        # Load the GGUF transformer
+        transformer = FluxTransformer2DModel.from_single_file(
+            r"/content/ComfyUI/models/unet/flux1-schnell-Q3_K_S.gguf",
+            quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+            torch_dtype=torch.bfloat16,
+        )
+
         pipe = InstantCharacterFluxPipeline.from_pretrained(
-            base_model, 
+            transformer=transformer,  # Added to use GGUF transformer
             torch_dtype=torch.bfloat16,
             cache_dir=cache_dir,    
         )
